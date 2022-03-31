@@ -1,0 +1,28 @@
+.App {
+  text-align: center;
+}
+.state {
+  border: 1px black solid;
+}
+
+.row{
+  display: flex;
+}
+
+.box{
+  height: 40px;
+  width: 40px;
+  border: 1px white solid;
+
+}
+.focused {
+  border: 1px grey dashed;
+
+}
+.captured {
+  background-color: green;
+  border: 1px grey solid;
+}
+.current {
+  background-color: cyan;
+}
