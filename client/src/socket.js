@@ -10,7 +10,7 @@ const useSocket = () => {
     useEffect(() =>{
         socketRef.current = socketIOClient("http://localhost:4000");
         socketRef.current.on("sendState",(data) =>{
-            console.log(data.state.state[data.currPos.y][data.currPos.x])
+            console.log(data)
             setState(data.state.state)
             setCurrPos(data.currPos)
             setMessage(data.message)

@@ -29,65 +29,66 @@ server.listen(port,() =>
 io.on("connection",async (socket) =>{
   console.log("Connection established");
 
-  let currCommand = null
-  let nextCommand = null
-  let running = false;
+  let scannerPos = null
+  let nextPos = null
   let state = await State.findById('6245baade6617fd8b0e9fcd2') //get this state
-  let currPos = {x:state.state[0].length/2,y:state.state.length/2} //set pointer to middle of the screen
+  let currPos = {x:state.state[0].length/2,y:state.state.length/2} //set scanner to middle of the screen
+  let message=''
   socket.emit('sendState',{state,currPos})
 
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-  const focus = async () => {
-    if(state.state[currPos.y][currPos.x].focused) return
-    socket.emit('sendState',{state,currPos,message:`Focusing (${currPos.x}, ${currPos.y})`})
-    running = true;
+  const focus = async (pos) => {
+    if(state.state[pos.y][pos.x].focused) return
+    message = `Focusing (${pos.x}, ${pos.y})`
+    socket.emit('sendState',{state,currPos,message})
     await sleep(3000)
-    state.state[currPos.y][currPos.x].focused=true
-    socket.emit('sendState',{state,currPos,message:`Focused (${currPos.x}, ${currPos.y}). Capturing`})
+    state.state[pos.y][pos.x].focused=true
     state.save()
-    console.log('focused ',[currPos.x,currPos.y])
+    message = `Focused (${pos.x}, ${pos.y}). Capturing`
+    socket.emit('sendState',{state,currPos,message})
+    console.log('focused ',[pos.x,pos.y])
   }
-  const capture = async () => {
-    if(state.state[currPos.y][currPos.x].captured) return
+  const capture = async (pos) => {
+    if(state.state[pos.y][pos.x].captured) return
     await sleep(2000)
-    state.state[currPos.y][currPos.x].captured=true
+    state.state[pos.y][pos.x].captured=true
     state.save()
-    socket.emit('sendState',{state,currPos,message:`Captured (${currPos.x}, ${currPos.y})`})
-    console.log('captured ',[currPos.x,currPos.y])
-    running=false
+    message = `Captured (${pos.x}, ${pos.y})`
+    socket.emit('sendState',{state,currPos,message})
+    console.log('captured ',[pos.x,pos.y])
   }
 
-  const runCommand = async (command) => {
-    switch (command) {
-      case 'ArrowUp':
-        currPos.y--;
-        break;
-      case 'ArrowDown':
-        currPos.y++;
-        break;
-      case 'ArrowLeft':
-        currPos.x--;
-        break;
-      case 'ArrowRight':
-        currPos.x++;
-        break;
-    }
-    socket.emit('sendState',{state,currPos})
-    await focus()
-    await capture()
-    console.log(nextCommand)
-    currCommand = nextCommand
-    nextCommand=null
+  const runCommand = async (pos) => {
+    console.log('Running operation on ', [pos.x, pos.y])
+    await focus(pos)
+    await capture(pos)
   }
 
   socket.on("newCommand",async (command) => {
     try{
-      if(running){
-        nextCommand = command
+      switch (command) {
+        case 'ArrowUp':
+          currPos.y--;
+          break;
+        case 'ArrowDown':
+          currPos.y++;
+          break;
+        case 'ArrowLeft':
+          currPos.x--;
+          break;
+        case 'ArrowRight':
+          currPos.x++;
+          break;
+      }
+      socket.emit('sendState',{state,currPos, message})
+      if(scannerPos){
+        nextPos = currPos
       } else {
-        currCommand = command
-        while(currCommand){
-          await runCommand(currCommand)
+        scannerPos = currPos
+        while(scannerPos){
+          await runCommand({x:scannerPos.x,y:scannerPos.y})
+          scannerPos = nextPos;
+          nextPos = null
         }
       }
     }catch (e) {
